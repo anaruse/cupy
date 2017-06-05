@@ -1411,6 +1411,8 @@ cdef class ndarray:
     @property
     def device(self):
         """CUDA device on which this array resides."""
+        if self.data is None:
+            return None
         return self.data.device
 
     cpdef get(self, stream=None):
