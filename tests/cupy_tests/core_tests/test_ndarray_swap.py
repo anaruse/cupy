@@ -54,4 +54,3 @@ class TestArraySwap(unittest.TestCase):
         self.assertNotEqual(a.data, None)
         self.assertEqual(a.data_swapout, None)
         testing.assert_array_equal(a, b)
-

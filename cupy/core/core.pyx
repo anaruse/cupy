@@ -1554,7 +1554,7 @@ cdef class ndarray:
         self.is_swapout = True
 
     cpdef swapin(self, stream=None):
-        """Swaps in data from HOST pinned memory to GPU device memory                           
+        """Swaps in data from HOST pinned memory to GPU device memory
         """
         if self.is_swapout is False:
             # Data is on device memory. No need to swap-in.

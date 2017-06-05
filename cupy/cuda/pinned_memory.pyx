@@ -141,7 +141,7 @@ cdef class PinnedMemoryPointer:
         if size > 0:
             runtime.memcpyAsync(dst.ptr, self.ptr, size,
                                 runtime.memcpyHostToDevice, stream.ptr)
- 
+
     cpdef Py_ssize_t size(self):
         return self.mem.size - (self.ptr - self.mem.ptr)
 
