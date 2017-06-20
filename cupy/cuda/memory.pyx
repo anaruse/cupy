@@ -359,12 +359,15 @@ cdef class SingleDeviceMemoryPool:
             try:
                 mem = self._alloc(size).mem
             except runtime.CUDARuntimeError as e:
+                # print('# memory.pyx:362, _alloc error')
+                runtime.deviceSynchronize()
                 if e.status != runtime.errorMemoryAllocation:
                     raise
                 self.free_all_free()
                 try:
                     mem = self._alloc(size).mem
                 except runtime.CUDARuntimeError as e:
+                    # print('# memory.pyx:370, _alloc error (critical)')
                     if e.status != runtime.errorMemoryAllocation:
                         raise
                     gc.collect()
