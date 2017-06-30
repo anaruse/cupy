@@ -2,6 +2,7 @@ from cupy.testing import array
 from cupy.testing import attr
 from cupy.testing import helper
 from cupy.testing import parameterized
+from cupy.testing import random
 
 assert_allclose = array.assert_allclose
 assert_array_almost_equal = array.assert_array_almost_equal
@@ -19,6 +20,7 @@ numpy_cupy_array_max_ulp = helper.numpy_cupy_array_max_ulp
 numpy_cupy_array_equal = helper.numpy_cupy_array_equal
 numpy_cupy_array_list_equal = helper.numpy_cupy_array_list_equal
 numpy_cupy_array_less = helper.numpy_cupy_array_less
+numpy_cupy_equal = helper.numpy_cupy_equal
 numpy_cupy_raises = helper.numpy_cupy_raises
 for_dtypes = helper.for_dtypes
 for_all_dtypes = helper.for_all_dtypes
@@ -49,3 +51,6 @@ NumpyError = helper.NumpyError
 gpu = attr.gpu
 multi_gpu = attr.multi_gpu
 slow = attr.slow
+
+fix_random = random.fix_random
+generate_seed = random.generate_seed
