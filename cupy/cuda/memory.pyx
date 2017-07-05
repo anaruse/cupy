@@ -361,7 +361,7 @@ cdef class SingleDeviceMemoryPool:
             try:
                 mem = self._alloc(size).mem
             except runtime.CUDARuntimeError as e:
-                # print('# memory.pyx:362, _alloc error')
+                print('# memory.pyx:364, _alloc error, size: {}'.format(size))
                 runtime.deviceSynchronize()
                 if e.status != runtime.errorMemoryAllocation:
                     raise
@@ -369,13 +369,14 @@ cdef class SingleDeviceMemoryPool:
                 try:
                     mem = self._alloc(size).mem
                 except runtime.CUDARuntimeError as e:
-                    # print('# memory.pyx:370, _alloc error (critical)')
+                    print('# memory.pyx:372, _alloc error (critical), size: {}'.format(size))
                     if e.status != runtime.errorMemoryAllocation:
                         raise
                     gc.collect()
                     mem = self._alloc(size).mem
 
         self._in_use[mem.ptr] = mem
+        print('# memory.pyx:379, malloc(), size: {}, ptr: {}'.format(size, mem.ptr))
         pmem = PooledMemory(mem, self._weakref)
         return MemoryPointer(pmem, 0)
 
@@ -387,6 +388,7 @@ cdef class SingleDeviceMemoryPool:
             raise RuntimeError('Cannot free out-of-pool memory')
         free = self._free[size]
         free.append(mem)
+        print('# memory.pyx:391, free(), size: {}, ptr: {}'.format(size, ptr))
 
     cpdef free_all_blocks(self):
         self._free.clear()
