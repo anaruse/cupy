@@ -13,6 +13,7 @@ from cupy.cuda import runtime
 from cupy.cuda cimport device
 from cupy.cuda cimport runtime
 
+_debug = False
 
 cdef class Memory:
 
@@ -33,9 +34,13 @@ cdef class Memory:
         if size > 0:
             self.device = device.Device()
             self.ptr = runtime.malloc(size)
+            if _debug:
+                print('# memory.pyx:38, __init__(), size: {}, ptr: {}'.format(self.size, self.ptr))
 
     def __dealloc__(self):
         if self.ptr:
+            if _debug:
+                print('# memory.pyx:43, __dealloc__(), size: {}, ptr: {}'.format(self.size, self.ptr))
             runtime.free(self.ptr)
 
     def __int__(self):
@@ -361,22 +366,26 @@ cdef class SingleDeviceMemoryPool:
             try:
                 mem = self._alloc(size).mem
             except runtime.CUDARuntimeError as e:
-                print('# memory.pyx:364, _alloc error, size: {}'.format(size))
+                if _debug:
+                    print('# memory.pyx:370, _alloc error, size: {}'.format(size))
                 runtime.deviceSynchronize()
                 if e.status != runtime.errorMemoryAllocation:
                     raise
                 self.free_all_blocks()
+                runtime.deviceSynchronize()
                 try:
                     mem = self._alloc(size).mem
                 except runtime.CUDARuntimeError as e:
-                    print('# memory.pyx:372, _alloc error (critical), size: {}'.format(size))
+                    if _debug:
+                        print('# memory.pyx:380, _alloc error (critical), size: {}'.format(size))
                     if e.status != runtime.errorMemoryAllocation:
                         raise
                     gc.collect()
                     mem = self._alloc(size).mem
 
         self._in_use[mem.ptr] = mem
-        print('# memory.pyx:379, malloc(), size: {}, ptr: {}'.format(size, mem.ptr))
+        if _debug:
+            print('# memory.pyx:388, malloc(), size: {}, ptr: {}'.format(size, mem.ptr))
         pmem = PooledMemory(mem, self._weakref)
         return MemoryPointer(pmem, 0)
 
@@ -388,7 +397,8 @@ cdef class SingleDeviceMemoryPool:
             raise RuntimeError('Cannot free out-of-pool memory')
         free = self._free[size]
         free.append(mem)
-        print('# memory.pyx:391, free(), size: {}, ptr: {}'.format(size, ptr))
+        if _debug:
+            print('# memory.pyx:401, free(), size: {}, ptr: {}'.format(size, ptr))
 
     cpdef free_all_blocks(self):
         self._free.clear()
