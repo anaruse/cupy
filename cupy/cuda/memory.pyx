@@ -125,6 +125,10 @@ cdef class MemoryPointer:
         """Subtracts an offset from the pointer in place."""
         return self.__iadd__(-offset)
 
+    cpdef update_ptr(self, size_t ptr):
+        """..."""
+        self.ptr = ptr
+
     cpdef copy_from_device(self, MemoryPointer src, Py_ssize_t size):
         """Copies a memory sequence from a (possibly different) device.
 
@@ -342,6 +346,7 @@ cdef class SingleDeviceMemoryPool:
 
     def __init__(self, allocator=_malloc):
         self._in_use = {}
+        self._in_use_memptr = {}
         self._free = collections.defaultdict(list)
         self._alloc = allocator
         self._weakref = weakref.ref(self)
@@ -366,39 +371,53 @@ cdef class SingleDeviceMemoryPool:
             try:
                 mem = self._alloc(size).mem
             except runtime.CUDARuntimeError as e:
-                if _debug:
-                    print('# memory.pyx:370, _alloc error, size: {}'.format(size))
                 runtime.deviceSynchronize()
+                if _debug:
+                    print('# memory.pyx:376, _alloc error, size: {}'.format(size))
                 if e.status != runtime.errorMemoryAllocation:
                     raise
                 self.free_all_blocks()
-                runtime.deviceSynchronize()
                 try:
                     mem = self._alloc(size).mem
                 except runtime.CUDARuntimeError as e:
+                    runtime.deviceSynchronize()
                     if _debug:
-                        print('# memory.pyx:380, _alloc error (critical), size: {}'.format(size))
+                        print('# memory.pyx:385, _alloc error (critical), size: {}'.format(size))
                     if e.status != runtime.errorMemoryAllocation:
                         raise
+                    self.realloc_all(size)
                     gc.collect()
                     mem = self._alloc(size).mem
 
-        self._in_use[mem.ptr] = mem
         if _debug:
-            print('# memory.pyx:388, malloc(), size: {}, ptr: {}'.format(size, mem.ptr))
+            print('# memory.pyx:394, malloc(), size: {}, ptr: {}'.format(size, mem.ptr))
         pmem = PooledMemory(mem, self._weakref)
-        return MemoryPointer(pmem, 0)
+        memptr = MemoryPointer(pmem, 0)
+        self._in_use[mem.ptr] = mem
+        self._in_use_memptr[mem.ptr] = weakref.ref(memptr)
+
+        if False:
+            # just for testing
+            ptrs = [i for i in self._in_use.keys()]
+            ptr = ptrs[len(ptrs)/2]
+            mem = self._in_use[ptr]
+            # if 4*1024 <= mem.size and mem.size <= 4*1024*1024:
+            if mem.size <= 4*1024*1024:
+                self.realloc(ptr, mem.size)
+
+        return memptr
 
     cpdef free(self, size_t ptr, Py_ssize_t size):
         cdef list free
         cdef Memory mem
         mem = self._in_use.pop(ptr, None)
+        memptr = self._in_use_memptr.pop(ptr, None)
         if mem is None:
             raise RuntimeError('Cannot free out-of-pool memory')
         free = self._free[size]
         free.append(mem)
         if _debug:
-            print('# memory.pyx:401, free(), size: {}, ptr: {}'.format(size, ptr))
+            print('# memory.pyx:421, free(), size: {}, ptr: {}'.format(size, ptr))
 
     cpdef free_all_blocks(self):
         self._free.clear()
@@ -414,6 +433,72 @@ cdef class SingleDeviceMemoryPool:
         for v in six.itervalues(self._free):
             n += len(v)
         return n
+
+    cpdef size_t realloc(self, size_t ptr, Py_ssize_t size):
+        """..."""
+        cdef Memory cur_mem
+        cdef Memory new_mem
+        cdef MemoryPointer memptr
+        cdef size_t _ptr
+
+        # check whether size are valid
+        if self._in_use[ptr].size != size:
+            raise
+
+        _ptr = ptr
+        for i in range(0, 2):
+            try:
+                new_mem = self._alloc(size).mem
+            except runtime.CUDARuntimeError as e:
+                if e.status != runtime.errorMemoryAllocation:
+                    raise
+                runtime.deviceSynchronize()
+                new_mem = None
+
+            if new_mem is None:
+                if _debug:
+                    print('# memory.ptx:461, realloc(), {}, failed to allocate new memory'.format(i))
+                return _ptr
+
+            if i > 0 and _ptr < new_mem.ptr:
+                # print('# memory.ptx:465, realloc(), cancel to do realloc because new memory address is larger than current memory address')
+                return _ptr
+
+            # memory copy
+            cur_mem = self._in_use.pop(_ptr, None)
+            runtime.memcpy(new_mem.ptr, cur_mem.ptr, size, runtime.memcpyDeviceToDevice)
+            runtime.deviceSynchronize()
+            if _debug:
+                print('# memory.ptx:473, realloc(), {}, size: {}, ptr: {} -> {}'.format(i, size, cur_mem.ptr, new_mem.ptr))
+            del cur_mem
+
+            # update info
+            memptr = self._in_use_memptr.pop(_ptr, None)()
+            memptr.mem.ptr = new_mem.ptr
+            memptr.update_ptr(new_mem.ptr)
+            self._in_use[new_mem.ptr] = new_mem
+            self._in_use_memptr[new_mem.ptr] = weakref.ref(memptr)
+
+            _ptr = new_mem.ptr
+
+        return _ptr
+
+    cpdef realloc_all(self, Py_ssize_t max_size):
+        _in_use = collections.defaultdict(list)
+        for ptr in self._in_use.keys():
+            mem = self._in_use[ptr]
+            _in_use[mem.size].append(ptr)
+
+        if _debug:
+            print('# memory.ptx:494, realloc_all(), max_size: {}'.format(max_size))
+
+        for size in sorted(_in_use.keys()):
+            if _debug:
+                print('# memory.ptx:498, realloc_all(), size: {}, len: {}'.format(size, len(_in_use[size])))
+            if size >= max_size:
+                continue
+            for ptr in sorted(_in_use[size]):
+                new_ptr = self.realloc(ptr, size)
 
     cpdef used_bytes(self):
         cdef Py_ssize_t size = 0
