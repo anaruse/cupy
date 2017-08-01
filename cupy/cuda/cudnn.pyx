@@ -35,6 +35,10 @@ cdef extern from "cupy_cudnn.h":
         TensorDescriptor tensorDesc, DataType dataType,
         int n, int c, int h, int w,
         int nStride, int cStride, int hStride, int wStride) nogil
+    int cudnnGetTensor4dDescriptor(
+        TensorDescriptor tensorDesc, DataType* dataType,
+        int* n, int* c, int* h, int* w,
+        int* nStride, int* cStride, int* hStride, int* wStride) nogil
     int cudnnSetTensorNdDescriptor(
         TensorDescriptor tensorDesc, DataType dataType, int nbDims,
         int* dimA, int* strideA) nogil
@@ -68,6 +72,10 @@ cdef extern from "cupy_cudnn.h":
 
     # Convolution
     int cudnnCreateConvolutionDescriptor(ConvolutionDescriptor* convDesc) nogil
+    int cudnnSetConvolutionMathType(
+        ConvolutionDescriptor convDesc, MathType mathType) nogil
+    int cudnnGetConvolutionMathType(
+        ConvolutionDescriptor convDesc, MathType *mathType) nogil
     int cudnnSetConvolution2dDescriptor_v4(
         ConvolutionDescriptor convDesc, int pad_h, int pad_w, int u,
         int v, int dilation_h, int dilation_w, ConvolutionMode mode) nogil
@@ -300,10 +308,14 @@ cdef extern from "cupy_cudnn.h":
     # RNN
     int cudnnCreateRNNDescriptor(RNNDescriptor* rnnDesc) nogil
     int cudnnDestroyRNNDescriptor(RNNDescriptor rnnDesc) nogil
-    int cudnnSetRNNDescriptor(
+    int cudnnSetRNNDescriptor_v5(
         RNNDescriptor rnnDesc, int hiddenSize,
         int numLayers, DropoutDescriptor dropoutDesc, RNNInputMode inputMode,
         DirectionMode direction, RNNMode mode, DataType dataType) nogil
+    int cudnnSetRNNDescriptor_v6(
+        Handle handle, RNNDescriptor rnnDesc, int hiddenSize,
+        int numLayers, DropoutDescriptor dropoutDesc, RNNInputMode inputMode,
+        DirectionMode direction, RNNMode mode, RNNAlgo algo, DataType dataType) nogil
     int cudnnGetRNNWorkspaceSize(
         Handle handle, RNNDescriptor rnnDesc, int seqLength,
         TensorDescriptor* xDesc, size_t* sizeInBytes) nogil
@@ -588,6 +600,19 @@ cpdef size_t createConvolutionDescriptor() except *:
     status = cudnnCreateConvolutionDescriptor(&desc)
     check_status(status)
     return <size_t>desc
+
+
+cpdef setConvolutionMathType(size_t convDesc, size_t mathType):
+    status = cudnnSetConvolutionMathType(
+        <ConvolutionDescriptor>convDesc, <MathType>mathType)
+    check_status(status)
+
+
+cpdef size_t getConvolutionMathType(size_t convDesc) except *:
+    cdef MathType mathType
+    status = cudnnGetConvolutionMathType(
+        <ConvolutionDescriptor>convDesc, &mathType)
+    return <size_t>mathType
 
 
 cpdef setConvolution2dDescriptor_v4(
@@ -1178,11 +1203,11 @@ cpdef destroyRNNDescriptor(size_t rnnDesc):
     check_status(status)
 
 
-cpdef setRNNDescriptor(
+cpdef setRNNDescriptor_v5(
         size_t rnnDesc, int hiddenSize, int numLayers,
         size_t dropoutDesc, int inputMode, int direction, int mode,
         int dataType):
-    status = cudnnSetRNNDescriptor(
+    status = cudnnSetRNNDescriptor_v5(
         <RNNDescriptor>rnnDesc, hiddenSize, numLayers,
         <DropoutDescriptor>dropoutDesc, <RNNInputMode>inputMode,
         <DirectionMode>direction, <RNNMode>mode, <DataType>dataType)
