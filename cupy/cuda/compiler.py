@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import warnings
 
 import six
 
@@ -120,6 +121,16 @@ def compile_with_cache(source, options=(), arch=None, cache_dir=None):
             options += '-m64',
         elif sys.maxsize == 2147483647:
             options += '-m32',
+
+    cuda_path = os.getenv('CUDA_PATH', None)
+    if cuda_path is None:
+        warnings.warn('Please set the CUDA path ' +
+                      'to environment variable `CUDA_PATH`')
+    else:
+        path = os.path.join(cuda_path, 'include')
+        options += ('-I ' + path,)
+
+    options += ('-ftz=true',)
 
     env = (arch, options, _get_nvcc_version())
     if '#include' in source:
