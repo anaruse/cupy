@@ -75,6 +75,10 @@ cudnnStatus_t cudnnSetTensor4dDescriptor(...) {
     return CUDNN_STATUS_SUCCESS;
 }
 
+cudnnStatus_t cudnnGetTensor4dDescriptor(...) {
+    return CUDNN_STATUS_SUCCESS;
+}
+
 cudnnStatus_t cudnnSetTensor4dDescriptorEx(...) {
     return CUDNN_STATUS_SUCCESS;
 }
