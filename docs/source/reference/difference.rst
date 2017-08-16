@@ -24,22 +24,6 @@ This is Intel CPU result.
   array([2147483647], dtype=int32)
 
 
-Boolean values squared
-----------------------
-
-In NumPy implementation, ``x ** 2`` is calculated using multiplication operator as ``x * x``.
-Because the result of the multiplication of boolean values is boolean, ``True ** 2`` return boolean value.
-However, when you use power operator with other arguments, it returns int values.
-If we aligned the behavior of the squared boolean values of CuPy to that of NumPy, we would have to check their values in advance of the calculation.
-But it would be slow because it would force CPUs to wait until the calculation on GPUs end.
-So we decided not to check its value.
-
-  >>> np.array([True]) ** 2
-  array([ True], dtype=bool)
-  >>> cupy.array([True]) ** 2
-  array([1])
-
-
 Random methods support dtype argument
 -------------------------------------
 
@@ -94,3 +78,18 @@ last element among elements referencing duplicate locations.
   >>> a_cpu[i_cpu] = v_cpu
   >>> a_cpu
   array([ 9998.,  9999.])
+
+
+Reduction methods return zero-dimensional array
+-----------------------------------------------
+
+NumPy's reduction functions (e.g. :func:`numpy.sum`) return scalar values (e.g. :class:`numpy.float32`).
+However CuPy counterparts return zero-dimensional :class:`cupy.ndarray` s.
+That is because CuPy scalar values (e.g. :class:`cupy.float32`) are aliases of NumPy scalar values and are allocated in CPU memory.
+If these types were returned, it would be required to synchronize between GPU and CPU.
+If you want to use scalar values, cast the returned arrays explicitly.
+
+  >>> type(np.sum(np.arange(3)))
+  <type 'numpy.int64'>
+  >>> type(cupy.sum(cupy.arange(3)))
+  <type 'cupy.core.core.ndarray'>

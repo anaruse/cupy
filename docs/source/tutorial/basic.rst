@@ -34,7 +34,7 @@ Its data is allocated on the *current device*, which will be explained later.
 
 
 Most of array manipulations are also do in the way similar to NumPy.
-Take the Euclid norm (a.k.a L2 norm) for example.
+Take the Euclidean norm (a.k.a L2 norm) for example.
 NumPy has `numpy.lina.g.norm` to calculate it on CPU.
 
 .. doctest::
@@ -148,7 +148,7 @@ transfer the array between devices with this function.
    Actually :func:`cupy.asarray` is equivalent to `cupy.array(arr, dtype, copy=False)`.
 
 
-Move array from a device to a device
+Move array from a device to the host
 ------------------------------------
 
 Moving a device array to the host can be done by :func:`cupy.asnumpy` as follows:

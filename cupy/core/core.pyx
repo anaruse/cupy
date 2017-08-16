@@ -35,6 +35,17 @@ cdef inline _should_use_rop(x, y):
     return xp < yp and not isinstance(y, ndarray)
 
 
+try:
+    _AxisError = numpy.AxisError
+except AttributeError:
+    class IndexOrValueError(IndexError, ValueError):
+
+        def __init__(self, *args, **kwargs):
+            super(IndexOrValueError, self).__init__(*args, **kwargs)
+
+    _AxisError = IndexOrValueError
+
+
 cdef class ndarray:
 
     """Multi-dimensional array on a CUDA device.
@@ -47,7 +58,6 @@ cdef class ndarray:
         shape (tuple of ints): Length of axes.
         dtype: Data type. It must be an argument of :class:`numpy.dtype`.
         memptr (cupy.cuda.MemoryPointer): Pointer to the array content head.
-        strides (tuple of ints): The strides for axes.
         order ({'C', 'F'}): Row-major (C-style) or column-major
             (Fortran-style) order.
 
@@ -570,8 +580,9 @@ cdef class ndarray:
                 if _axis < 0:
                     _axis += ndim
                 if _axis < 0 or _axis >= ndim:
-                    msg = "'axis' entry %d is out of bounds [-%d, %d)"
-                    raise ValueError(msg % (axis_orig, ndim, ndim))
+                    raise _AxisError(
+                        "'axis' entry %d is out of bounds [-%d, %d)" %
+                        (axis_orig, ndim, ndim))
                 if axis_flags[_axis] == 1:
                     raise ValueError("duplicate value in 'axis'")
                 axis_flags[_axis] = 1
@@ -586,8 +597,9 @@ cdef class ndarray:
                 pass
             else:
                 if _axis < 0 or _axis >= ndim:
-                    msg = "'axis' entry %d is out of bounds [-%d, %d)"
-                    raise ValueError(msg % (axis_orig, ndim, ndim))
+                    raise _AxisError(
+                        "'axis' entry %d is out of bounds [-%d, %d)" %
+                        (axis_orig, ndim, ndim))
                 axis_flags[_axis] = 1
 
         # Verify that the axes requested are all of size one
@@ -1089,7 +1101,11 @@ cdef class ndarray:
         return self.copy()
 
     def __deepcopy__(self, memo):
-        return self.copy()
+        if self.device is not None:
+            with self.device:
+                return self.copy()
+        else:
+            return self.copy()
 
     def __reduce__(self):
         return array, (self.get(),)
@@ -1839,11 +1855,15 @@ cdef _argmax = create_reduction_func(
 cpdef ndarray array(obj, dtype=None, bint copy=True, Py_ssize_t ndmin=0):
     # TODO(beam2d): Support order and subok options
     cdef Py_ssize_t nvidem
-    cdef ndarray a
+    cdef ndarray a, src
     if isinstance(obj, ndarray):
+        src = obj
         if dtype is None:
-            dtype = obj.dtype
-        a = obj.astype(dtype, copy)
+            dtype = src.dtype
+        if src.data.device.id == device.get_device_id():
+            a = src.astype(dtype, copy=copy)
+        else:
+            a = src.copy().astype(dtype, copy=False)
 
         ndim = a._shape.size()
         if ndmin > ndim:
@@ -1853,17 +1873,17 @@ cpdef ndarray array(obj, dtype=None, bint copy=True, Py_ssize_t ndmin=0):
             a.shape = (1,) * (ndmin - ndim) + a.shape
         return a
     else:
-        a_cpu = numpy.array(obj, dtype=dtype, copy=False, ndmin=ndmin)
-        if a_cpu.dtype.char not in '?bhilqBHILQefd':
-            raise ValueError('Unsupported dtype %s' % a_cpu.dtype)
-        if a_cpu.ndim > 0:
-            a_cpu = numpy.ascontiguousarray(a_cpu)
-        a = ndarray(a_cpu.shape, dtype=a_cpu.dtype)
-        a.data.copy_from_host(a_cpu.ctypes.get_as_parameter(), a.nbytes)
-        if a_cpu.dtype == a.dtype:
+        a_cpu = numpy.array(obj, dtype=dtype, copy=False, order='C',
+                            ndmin=ndmin)
+        a_dtype = a_cpu.dtype
+        if a_dtype.char not in '?bhilqBHILQefd':
+            raise ValueError('Unsupported dtype %s' % a_dtype)
+        a = ndarray(a_cpu.shape, dtype=a_dtype)
+        if a_cpu.ndim == 0:
+            a.fill(a_cpu[()])
             return a
-        else:
-            return a.view(dtype=a_cpu.dtype)
+        a.data.copy_from_host(a_cpu.ctypes.get_as_parameter(), a.nbytes)
+        return a
 
 
 cpdef ndarray ascontiguousarray(ndarray a, dtype=None):
@@ -2187,7 +2207,7 @@ cpdef ndarray concatenate_method(tup, int axis):
             if axis < 0:
                 axis += ndim
             if axis < 0 or axis >= ndim:
-                raise IndexError(
+                raise _AxisError(
                     'axis {} out of bounds [0, {})'.format(axis, ndim))
             dtype = a.dtype
             continue
@@ -2564,7 +2584,7 @@ cpdef ndarray _take(ndarray a, indices, li=None, ri=None, ndarray out=None):
         index_range = a.size
     else:
         if not (-a.ndim <= li < a.ndim and -a.ndim <= ri < a.ndim):
-            raise ValueError('Axis overrun')
+            raise _AxisError('Axis overrun')
         if a.ndim != 0:
             li %= a.ndim
             ri %= a.ndim
