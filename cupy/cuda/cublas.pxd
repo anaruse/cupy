@@ -18,6 +18,7 @@ cdef extern from *:
     ctypedef int Operation 'cublasOperation_t'
     ctypedef int PointerMode 'cublasPointerMode_t'
     ctypedef int SideMode 'cublasSideMode_t'
+    ctypedef int GemmAlgo 'cublasGemmAlgo_t'
 
 
 ###############################################################################
@@ -148,6 +149,20 @@ cpdef zgemmBatched(size_t handle, int transa, int transb,
                    int m, int n, int k, double complex alpha, size_t Aarray,
                    int lda, size_t Barray, int ldb, double complex beta,
                    size_t Carray, int ldc, int batchCount)
+cpdef sgemmStridedBatched(size_t handle, int transa, int transb,
+                          int m, int n, int k, float alpha,
+                          size_t A, int lda, int strideA,
+                          size_t B, int ldb, int strideB,
+                          float beta,
+                          size_t C, int ldc, int strideC,
+                          int batchCount)
+cpdef dgemmStridedBatched(size_t handle, int transa, int transb,
+                          int m, int n, int k, double alpha,
+                          size_t A, int lda, int strideA,
+                          size_t B, int ldb, int strideB,
+                          double beta,
+                          size_t C, int ldc, int strideC,
+                          int batchCount)
 cpdef strsm(size_t handle, int side, int uplo, int trans, int diag,
             int m, int n, float alpha, size_t Aarray, int lda,
             size_t Barray, int ldb)
@@ -177,3 +192,20 @@ cpdef sgetrfBatched(size_t handle, int n, size_t Aarray, int lda,
 cpdef sgetriBatched(size_t handle, int n, size_t Aarray, int lda,
                     size_t PivotArray, size_t Carray, int ldc,
                     size_t infoArray, int batchSize)
+
+# cpdef gemmBatchedEx(
+#     size_t handle, int transa, int transb, int m, int n, int k,
+#     float alpha,
+#     size_t Aarray, int Atype, int lda,
+#     size_t Barray, int Btype, int ldb,
+#     float beta,
+#     size_t Carray, int Ctype, int ldc,
+#     int batchCount, int comuteType, int algo)
+# 
+# cpdef gemmStridedBatchedEx(
+#     size_t handle, int transa, int transb, int m, int n, int k, size_t alpha,
+#     size_t A, int Atype, int lda, int strideA,
+#     size_t B, int Btype, int ldb, int strideB,
+#     size_t beta,
+#     size_t C, int Ctype, int ldc, int strideC,
+#     int batchCount, int comuteType, int algo)

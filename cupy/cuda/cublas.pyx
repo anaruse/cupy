@@ -139,6 +139,20 @@ cdef extern from 'cupy_cuda.h' nogil:
         const cuDoubleComplex** Barray, int ldb,
         const cuDoubleComplex* beta, cuDoubleComplex** Carray, int ldc,
         int batchCount)
+    int cublasSgemmStridedBatched(
+        Handle handle, Operation transa, Operation transb,
+        int m, int n, int k, const float* alpha,
+        const float* A, int lda, long long strideA,
+        const float* B, int ldb, long long strideB,
+        const float* beta,
+        float* C, int ldc, long long strideC, int batchCount)
+    int cublasDgemmStridedBatched(
+        Handle handle, Operation transa, Operation transb,
+        int m, int n, int k, const double* alpha,
+        const double* A, int lda, long long strideA,
+        const double* B, int ldb, long long strideB,
+        const double* beta,
+        double* C, int ldc, long long strideC, int batchCount)
     int cublasStrsm(
         Handle handle, SideMode size, FillMode uplo, Operation trans,
         DiagType diag, int m, int n, const float* alpha, const float* A,
@@ -175,6 +189,24 @@ cdef extern from 'cupy_cuda.h' nogil:
         Handle handle, int n, const float **Aarray, int lda,
         int *PivotArray, float *Carray[], int ldc, int *infoArray,
         int batchSize)
+#     int cublasGemmBatchedEx(
+#         Handle handle, Operation transa, Operation transb,
+#         int m, int n, int k,
+#         const void *alpha,
+#         const void *Aarray[], runtime.DataType Atype, int lda,
+#         const void *Barray[], runtime.DataType Btype, int ldb,
+#         const void *beta,
+#         void *Carray[], runtime.DataType Ctype, int ldc,
+#         int batchCount, runtime.DataType comuteType, GemmAlgo algo)
+#     int cublasGemmStridedBatchedEx(
+#         Handle handle, Operation transa, Operation transb,
+#         int m, int n, int k,
+#         const void *alpha,
+#         const void *A, runtime.DataType Atype, int lda, long long strideA,
+#         const void *B, runtime.DataType Btype, int ldb, long long strideB,
+#         const void *beta,
+#         void *C, runtime.DataType Ctype, int ldc, long long strideC,
+#         int batchCount, runtime.DataType comuteType, GemmAlgo algo)
 
 
 ###############################################################################
@@ -607,6 +639,56 @@ cpdef zgemmBatched(
             <const cuDoubleComplex**>Barray, ldb, &b,
             <cuDoubleComplex**>Carray, ldc, batchCount)
 
+        
+cpdef sgemmStridedBatched(
+        size_t handle, int transa, int transb, int m, int n, int k,
+        float alpha,
+        size_t A, int lda, int strideA,
+        size_t B, int ldb, int strideB,
+        float beta,
+        size_t C, int ldc, int strideC,
+        int batchCount):
+    # print('# cublas.pyx: m:{}, n:{}, k:{}'.format(m, n, k))
+    # print('# cublas.pyx: lda:{}, strideA:{}'.format(lda, strideA))
+    # print('# cublas.pyx: ldb:{}, strideB:{}'.format(ldb, strideB))
+    # print('# cublas.pyx: ldc:{}, strideC:{}'.format(ldc, strideC))
+    # print('# cublas.pyx: batchCount:{}'.format(batchCount))
+    with nogil:
+        status = cublasSgemmStridedBatched(
+            <Handle>handle, <Operation>transa, <Operation>transb, m, n, k,
+            &alpha,
+            <const float*>A, lda, <long long>strideA,
+            <const float*>B, ldb, <long long>strideB,
+            &beta,
+            <float*>C, ldc, <long long>strideC,
+            batchCount)
+    check_status(status)
+
+
+cpdef dgemmStridedBatched(
+        size_t handle, int transa, int transb, int m, int n, int k,
+        double alpha,
+        size_t A, int lda, int strideA,
+        size_t B, int ldb, int strideB,
+        double beta,
+        size_t C, int ldc, int strideC,
+        int batchCount):
+    print('# cublas.pyx: m:{}, n:{}, k:{}'.format(m, n, k))
+    print('# cublas.pyx: lda:{}, strideA:{}'.format(lda, strideA))
+    print('# cublas.pyx: ldb:{}, strideB:{}'.format(ldb, strideB))
+    print('# cublas.pyx: ldc:{}, strideC:{}'.format(ldc, strideC))
+    print('# cublas.pyx: batchCount:{}'.format(batchCount))
+    with nogil:
+        status = cublasDgemmStridedBatched(
+            <Handle>handle, <Operation>transa, <Operation>transb, m, n, k,
+            &alpha,
+            <const double*>A, lda, <long long>strideA,
+            <const double*>B, ldb, <long long>strideB,
+            &beta,
+            <double*>C, ldc, <long long>strideC,
+            batchCount)
+    check_status(status)
+
 
 cpdef strsm(
         size_t handle, int side, int uplo, int trans, int diag,
@@ -698,3 +780,42 @@ cpdef sgetriBatched(
             <Handle>handle, n, <const float**>Aarray, lda, <int*>PivotArray,
             <float**>Carray, ldc, <int*>infoArray, batchSize)
     check_status(status)
+
+
+# cpdef gemmBatchedEx(
+#         size_t handle, int transa, int transb, int m, int n, int k,
+#         float alpha,
+#         size_t Aarray, int Atype, int lda,
+#         size_t Barray, int Btype, int ldb,
+#         float beta,
+#         size_t Carray, int Ctype, int ldc,
+#         int batchCount, int computeType, int algo):
+#     with nogil:
+#         status = cublasGemmBatchedEx(
+#             <Handle>handle, <Operation>transa, <Operation>transb, m, n, k,
+#             &alpha,
+#             <const void**>Aarray, <runtime.DataType>Atype, lda,
+#             <const void**>Barray, <runtime.DataType>Btype, ldb,
+#             &beta,
+#             <void**>Carray, <runtime.DataType>Ctype, ldc,
+#             batchCount, <runtime.DataType>computeType, <GemmAlgo>algo)
+#     check_status(status)
+# 
+# 
+# cpdef gemmStridedBatchedEx(
+#         size_t handle, int transa, int transb, int m, int n, int k, size_t alpha,
+#         size_t A, int Atype, int lda, int strideA,
+#         size_t B, int Btype, int ldb, int strideB,
+#         size_t beta,
+#         size_t C, int Ctype, int ldc, int strideC,
+#         int batchCount, int computeType, int algo):
+#     with nogil:
+#         status = cublasGemmStridedBatchedEx(
+#             <Handle>handle, <Operation>transa, <Operation>transb, m, n, k,
+#             <const void*>alpha,
+#             <const void*>A, <runtime.DataType>Atype, lda, strideA,
+#             <const void*>B, <runtime.DataType>Btype, ldb, strideB,
+#             <const void*>beta,
+#             <void*>C, <runtime.DataType>Ctype, ldc, strideC,
+#             batchCount, <runtime.DataType>computeType, <GemmAlgo>algo)
+#     check_status(status)

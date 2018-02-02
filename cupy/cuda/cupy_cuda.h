@@ -541,6 +541,14 @@ cublasStatus_t cublasZgemmBatched(...) {
     return CUBLAS_STATUS_SUCCESS;
 }
 
+cublasStatus_t cublasSgemmStridedBatched(...) {
+    return CUBLAS_STATUS_SUCCESS;
+}
+
+cublasStatus_t cublasDgemmStridedBatched(...) {
+    return CUBLAS_STATUS_SUCCESS;
+}
+
 cublasStatus_t cublasSgemmEx(...) {
     return CUBLAS_STATUS_SUCCESS;
 }
@@ -575,7 +583,15 @@ cublasStatus_t cublasSgetriBatched(...) {
     return CUBLAS_STATUS_SUCCESS;
 }
 
+// cublasStatus_t cublasGemmBatchedEx(...) {
+//     return CUBLAS_STATUS_SUCCESS;
+// }
+// 
+// cublasStatus_t cublasGemmStridedBatchedEx(...) {
+//     return CUBLAS_STATUS_SUCCESS;
+// }
 
+  
 ///////////////////////////////////////////////////////////////////////////////
 // curand.h
 ///////////////////////////////////////////////////////////////////////////////
