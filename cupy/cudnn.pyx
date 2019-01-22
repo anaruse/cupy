@@ -1486,7 +1486,8 @@ def convolution_backward_data(
 
 def pooling_forward(
         core.ndarray x, core.ndarray y,
-        tuple ksize, tuple stride, tuple pad, int mode):
+        tuple ksize, tuple stride, tuple pad, int mode,
+        int layout=cudnn.CUDNN_TENSOR_NCHW):
     cdef float float_zero = 0, float_one = 1
     cdef double double_zero = 0, double_one = 1
     cdef size_t zero, one
@@ -1502,8 +1503,8 @@ def pooling_forward(
     y_desc = cudnn.createTensorDescriptor()
     pool_desc = cudnn.createPoolingDescriptor()
     try:
-        _create_tensor_nd_descriptor(x_desc, x)
-        _create_tensor_nd_descriptor(y_desc, y)
+        _create_tensor_descriptor(x_desc, x, format=layout)
+        _create_tensor_descriptor(y_desc, y, format=layout)
         _create_pooling_descriptor(pool_desc, ksize, stride, pad, mode)
         cudnn.poolingForward(
             handle, pool_desc, one, x_desc,
@@ -1517,7 +1518,8 @@ def pooling_forward(
 
 def pooling_backward(
         core.ndarray x, core.ndarray y, core.ndarray gy,
-        tuple ksize, tuple stride, tuple pad, int mode):
+        tuple ksize, tuple stride, tuple pad, int mode,
+        int layout=cudnn.CUDNN_TENSOR_NCHW):
     cdef float float_zero = 0, float_one = 1
     cdef double double_zero = 0, double_one = 1
     cdef size_t zero, one
@@ -1538,8 +1540,8 @@ def pooling_backward(
     y_desc = cudnn.createTensorDescriptor()
     pool_desc = cudnn.createPoolingDescriptor()
     try:
-        _create_tensor_nd_descriptor(x_desc, x)
-        _create_tensor_nd_descriptor(y_desc, y)
+        _create_tensor_descriptor(x_desc, x, format=layout)
+        _create_tensor_descriptor(y_desc, y, format=layout)
         _create_pooling_descriptor(pool_desc, ksize, stride, pad, mode)
         cudnn.poolingBackward(
             handle, pool_desc,
