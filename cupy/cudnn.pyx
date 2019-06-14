@@ -2170,8 +2170,8 @@ def fused_ops_execute(plan, var_pack):
 
 cpdef set_fused_ops_const_param_pack_attribute(
         Descriptor const_pack, int param_label, desc_or_scalar):
-    cdef int scaler
-    cdef Descriptor desc
+    cdef int scalar
+    cdef size_t param
     if param_label in (cudnn.CUDNN_PARAM_XDATA_PLACEHOLDER,
                        cudnn.CUDNN_PARAM_BN_MODE,
                        cudnn.CUDNN_PARAM_BN_EQSCALE_PLACEHOLDER,
@@ -2200,9 +2200,12 @@ cpdef set_fused_ops_const_param_pack_attribute(
         cudnn.setFusedOpsConstParamPackAttribute(const_pack.value, param_label,
                                                  <size_t>&scalar)
     else:
-        desc = <Descriptor>desc_or_scalar
+        if isinstance(desc_or_scalar, Descriptor):
+            param = desc_or_scalar.value
+        else:
+            param = <size_t>desc_or_scalar
         cudnn.setFusedOpsConstParamPackAttribute(const_pack.value, param_label,
-                                                 <size_t>desc.value)
+                                                 param)
 
 
 cpdef get_fused_ops_const_param_pack_attribute(Descriptor const_pack,
@@ -2252,26 +2255,30 @@ cpdef get_fused_ops_const_param_pack_attribute(Descriptor const_pack,
 
 
 cpdef set_fused_ops_variant_param_pack_attribute(
-        Descriptor var_pack, int param_label, arr_or_scaler):
+        Descriptor var_pack, int param_label, arr_or_scalar):
     cdef size_t scalar_size_t
     cdef int64_t scalar_int64_t
     cdef double scalar_double
     cdef size_t ptr
+    #print('# param_label: {}, arr_or_scalar: {}'.format(param_label, arr_or_scalar))
     if param_label == cudnn.CUDNN_SCALAR_SIZE_T_WORKSPACE_SIZE_IN_BYTES:
-        scalar_size_t = <size_t>arr_or_scaler
+        scalar_size_t = <size_t>arr_or_scalar
         cudnn.setFusedOpsVariantParamPackAttribute(var_pack.value, param_label,
                                                    <size_t>&scalar_size_t)
     elif param_label == cudnn.CUDNN_SCALAR_INT64_T_BN_ACCUMULATION_COUNT:
-        scalar_int64_t = <int64_t>arr_or_scaler
+        scalar_int64_t = <int64_t>arr_or_scalar
         cudnn.setFusedOpsVariantParamPackAttribute(var_pack.value, param_label,
                                                    <size_t>&scalar_int64_t)
     elif param_label in (cudnn.CUDNN_SCALAR_DOUBLE_BN_EPSILON,
                          cudnn.CUDNN_SCALAR_DOUBLE_BN_EXP_AVG_FACTOR):
-        scalar_double = <double>arr_or_scaler
+        scalar_double = <double>arr_or_scalar
         cudnn.setFusedOpsVariantParamPackAttribute(var_pack.value, param_label,
                                                    <size_t>&scalar_double)
     else:
-        ptr = <size_t>arr_or_scaler.data.ptr
+        if isinstance(arr_or_scalar, core.ndarray):
+            ptr = <size_t>arr_or_scalar.data.ptr
+        else:
+            ptr = <size_t>arr_or_scalar.ptr
         cudnn.setFusedOpsVariantParamPackAttribute(var_pack.value, param_label,
                                                    ptr)
 
