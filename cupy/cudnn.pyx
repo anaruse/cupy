@@ -1730,20 +1730,23 @@ def convolution_backward_data(
         tuple pad, tuple stride, tuple dilation, int groups, *,
         bint deterministic, bint auto_tune, tensor_core,
         int d_layout=cudnn.CUDNN_TENSOR_NCHW,
-        int w_layout=cudnn.CUDNN_TENSOR_NCHW):
+        int w_layout=cudnn.CUDNN_TENSOR_NCHW,
+        double beta=0.0):
     cdef int dev_id = W.data.device.id
     assert dev_id == x.data.device.id
     assert dev_id == y.data.device.id
 
-    cdef float float_zero = 0, float_one = 1
-    cdef double double_zero = 0, double_one = 1
-    cdef size_t zero, one
+    cdef float float_one = 1, float_beta
+    cdef double double_one = 1, double_beta
+    cdef size_t one, _beta
     if x.dtype == 'd':
-        zero = <size_t>&double_zero
+        double_beta = beta
         one = <size_t>&double_one
+        _beta = <size_t>&double_beta
     else:
-        zero = <size_t>&float_zero
+        float_beta = <float>beta
         one = <size_t>&float_one
+        _beta = <size_t>&float_beta
 
     # Disable use_tensor_core in deterministic mode because
     # CUDNN_CONVOLUTION_BWD_DATA_ALGO_1 does not use Tensor Core.
@@ -1810,7 +1813,7 @@ def convolution_backward_data(
 
         cudnn.convolutionBackwardData_v3(
             handle, one, filter_desc, W.data.ptr, x_desc, x.data.ptr,
-            conv_desc, algo, workspace.ptr, workspace_size, zero, y_desc,
+            conv_desc, algo, workspace.ptr, workspace_size, _beta, y_desc,
             y.data.ptr)
 
         del workspace, x, W
