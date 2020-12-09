@@ -18,6 +18,8 @@ from cupy.core cimport _routines_manipulation as _manipulation
 from cupy.core.core cimport ndarray
 from cupy.core cimport internal
 
+from cupy.cuda import cub
+
 
 # ndarray members
 
@@ -87,8 +89,15 @@ cpdef ndarray _ndarray_argwhere(ndarray self):
             scan_dtype = numpy.int32
         else:
             scan_dtype = numpy_int64
-        scan_index = _math.scan(nonzero, op=_math.scan_op.SCAN_SUM,
-                                dtype=scan_dtype)
+
+        if False:
+            scan_index = _math.scan(nonzero, op=_math.scan_op.SCAN_SUM,
+                                    dtype=scan_dtype)
+        else:
+            scan_index = nonzero.astype(scan_dtype, order='C',
+                                        casting=None, subok=None, copy=False)
+            cub.cub_scan(scan_index, cub.CUPY_CUB_CUMSUM)
+
         count_nonzero = int(scan_index[-1])  # synchronize!
     ndim = self._shape.size()
     dst = ndarray((count_nonzero, ndim), dtype=numpy_int64)
